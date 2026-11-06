@@ -1,0 +1,59 @@
+AL DÍA - Mis responsabilidades + Rachas en una sola app
+=========================================================
+
+Esta carpeta es la app completa. No necesita Claude, ni cuenta, ni internet
+para usarse. Todo se guarda solo en el dispositivo donde la uses.
+
+Archivos (deben quedarse juntos):
+  index.html              la app
+  manifest.webmanifest    nombre e ícono para instalarla
+  sw.js                   permite abrirla sin internet
+  icon-*.png              íconos
+
+
+1) PASAR TUS DATOS DE LAS DOS APPS ANTERIORES
+---------------------------------------------
+a. En Mis responsabilidades: Ajustes > Copia de seguridad > Exportar.
+b. En Rachas: Progreso > Hacer copia de respaldo (o Exportar copia).
+c. En Al día: botón ☰ (arriba a la derecha) > Ajustes y datos > Importar,
+   y elige los dos archivos a la vez.
+
+Tus responsabilidades, metas, hábitos, rachas, puntos, premios, alcancías,
+frases y logros pasan tal cual. Las apps anteriores no se modifican.
+
+Atajo: si subes Al día al MISMO sitio donde tenías las otras apps (por
+ejemplo, la misma cuenta de GitHub Pages), la primera vez que la abras trae
+tus datos sola, sin exportar nada.
+
+
+2) EN LA COMPUTADORA (lo más fácil)
+-----------------------------------
+Haz doble clic en index.html. Se abre en tu navegador y funciona sin
+internet. Usa siempre el mismo navegador, porque ahí se guardan tus datos.
+
+
+3) EN EL CELULAR COMO APP (recomendada)
+---------------------------------------
+Los celulares solo instalan una app web si se abre una vez desde una
+dirección https. Sube esta carpeta UNA sola vez a un alojamiento gratuito
+(Netlify Drop: arrastras la carpeta; o GitHub Pages / Cloudflare Pages).
+
+Luego abre el enlace en el celular e instálala:
+  - Android (Chrome): Ajustes y datos > Instalar, o menú ⋮ > Instalar app.
+  - iPhone (Safari): Compartir > Agregar a inicio.
+Ábrela una vez con internet. Desde ahí funciona sin conexión.
+
+Opcional, solo Android: para un archivo .apk, pega tu enlace en
+pwabuilder.com y descarga el paquete para Android.
+
+
+4) CUIDA TUS DATOS
+------------------
+Si desinstalas la app, borras los datos del navegador o cambias de
+celular, se pierde lo que no hayas respaldado. Haz una copia desde
+Ajustes y datos > Exportar cada cierto tiempo y guárdala en tu nube o
+envíatela por correo. La app te dice cuándo fue tu última copia.
+
+Las notificaciones del sistema avisan mientras la app sigue abierta en
+segundo plano. Para una alarma con la app cerrada, abre la tarea y usa
+"Agregar a Google Calendar" (eso sí necesita internet).
