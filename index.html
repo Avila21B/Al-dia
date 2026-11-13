@@ -9,9 +9,6 @@
 <meta name="description" content="Responsabilidades, hábitos, metas y premios en un solo lugar.">
 <meta name="theme-color" content="#ECEFF3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0F1522" media="(prefers-color-scheme: dark)">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
 
 <title>Al día</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2143,6 +2140,7 @@ function render(){
   $("fab").setAttribute("aria-label", {all:"Agregar", task:"Agregar responsabilidad", habit:"Agregar hábito o diaria", goal:"Crear meta", reward:"Agregar premio o alcancía"}[fabMode] || "Agregar");
   shownBal = balance();
   updateReminderState();
+  bridgeOut();
 }
 var shownBal = null;
 function updateReminderState(){
@@ -2910,6 +2908,7 @@ function onReady(){
   var changed = migrateEcon();
   autoProtect();
   render();
+  bridgeIn();
   if(changed) toast("Puntos actualizados: ganas menos por cumplir y los premios cuestan el doble. Tu saldo y tu nivel se mantienen.");
 }
 
@@ -3336,7 +3335,7 @@ setInterval(function(){
   var key = nd + "|" + nowHM().slice(0,4) + "|" + rems.map(function(t){ return t.id; }).join(",");
   if((key !== ui.remKey || nd !== TODAY) && !anyDialogOpen() && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) render();
 }, 60000);
-document.addEventListener("visibilitychange", function(){ if(!document.hidden && !anyDialogOpen()) render(); });
+document.addEventListener("visibilitychange", function(){ if(!document.hidden){ bridgeIn(); if(!anyDialogOpen()) render(); } });
 window.addEventListener("storage", function(e){ if(e.key === LKEY && store.mode === "local"){ localLoad(); touch(); render(); } });
 
 /* instalación (solo fuera de Claude) */
@@ -3345,6 +3344,80 @@ function doInstall(){
   ev.prompt();
   Promise.resolve(ev.userChoice).catch(function(){}).then(function(){ ui.installEvt = null; render(); });
 }
+
+/* ================= conexión con Ruta del día =================
+   Las dos apps siguen separadas. Se hablan por dos llaves del almacenamiento
+   del navegador, que comparten cuando están publicadas en el mismo sitio:
+   - "puente.aldia.hoy": Al día publica lo que tienes que hacer (solo lectura para Ruta).
+   - "puente.ruta.hechos": Ruta deja aquí lo que marcaste; Al día lo aplica y suma tus puntos. */
+var BRIDGE_OUT = "puente.aldia.hoy", BRIDGE_IN = "puente.ruta.hechos", bridgeLast = "";
+function bridgeDone(h, days){ return days.filter(function(k){ return k >= h.created && dayOk(h, k); }); }
+function bridgeOut(){
+  if(!ui.ready) return;
+  try{
+    var days = []; for(var i = 13; i >= 0; i--) days.push(addDays(TODAY, -i));
+    var horizon = addDays(TODAY, 14), items = [];
+    S.habits.forEach(function(h){
+      if(h.type === "avoid") return;
+      items.push({ref:"h:"+h.id, kind:"habito", title:h.name, emoji:h.emoji || "", moment:h.moment || "", order:h.order || 0,
+        goal: h.type === "qty" ? h.target+(h.unit ? " "+h.unit : "") : "", doneOn: bridgeDone(h, days)});
+    });
+    S.tasks.forEach(function(t){
+      if(t.example) return;
+      var ty = typeOf(t.type), base = {ref:"t:"+t.id, title:t.title, emoji:ty.emoji === "🏷️" ? "" : ty.emoji, type:t.type || "", typeName:ty.name, prio:t.priority || 3};
+      if(t.mode === "daily") items.push(Object.assign(base, {kind:"diaria", moment:t.moment || "", doneOn:(t.doneDates || []).filter(function(k){ return k >= days[0]; })}));
+      else if(t.mode === "date" && t.due && (!t.done || t.doneAt >= days[0]) && t.due <= horizon) items.push(Object.assign(base, {kind:"fecha", due:t.due, time:t.time || "", done:!!t.done, doneAt:t.doneAt || ""}));
+      else if(t.mode === "month" && t.month && (!t.done || t.doneAt >= days[0]) && t.month <= horizon.slice(0,7)) items.push(Object.assign(base, {kind:"mes", month:t.month, done:!!t.done, doneAt:t.doneAt || ""}));
+    });
+    var body = JSON.stringify(items);
+    if(body === bridgeLast) return;
+    bridgeLast = body;
+    localStorage.setItem(BRIDGE_OUT, JSON.stringify({v:1, app:"al-dia", date:TODAY, at:Date.now(), items:items}));
+  }catch(e){}
+}
+function bridgeIn(){
+  if(!ui.ready) return;
+  var queue = [];
+  try{ queue = JSON.parse(localStorage.getItem(BRIDGE_IN) || "[]"); }catch(e){ queue = []; }
+  if(!Array.isArray(queue) || !queue.length) return;
+  var b = snap(), marked = 0, ids = {};
+  queue.forEach(function(q){
+    if(!q || typeof q.ref !== "string") return;
+    ids[q.id] = 1;
+    var k = isKey(q.date) ? q.date : TODAY; if(k > TODAY) return;
+    var kind = q.ref.slice(0,2), id = q.ref.slice(2), on = !!q.done;
+    if(kind === "t:"){
+      var t = findTask(id); if(!t) return;
+      if(t.mode === "daily"){
+        var dd = (t.doneDates || []).slice(), i = dd.indexOf(k);
+        if(on && i < 0){ dd.push(k); marked++; } else if(!on && i >= 0) dd.splice(i,1); else return;
+        t.doneDates = dd.sort().slice(-2000);
+      } else {
+        if(on && !t.done){ t.done = true; t.doneAt = k; t.donePts = TASK_PTS[t.priority || 3]; marked++; }
+        else if(!on && t.done && t.doneAt === k){ t.done = false; t.doneAt = ""; delete t.donePts; }
+        else return;
+      }
+      persist("tasks", t);
+    } else if(kind === "h:"){
+      var h = findHabit(id); if(!h || h.type === "avoid" || k < h.created) return;
+      if(h.type === "check"){
+        if(on && !h.done[k]){ h.done[k] = h.points; marked++; } else if(!on && h.done[k]) delete h.done[k]; else return;
+      } else {
+        var c = h.qty[k] || 0;
+        if(on && c < h.target){ h.qty[k] = h.target; marked++; } else if(!on && c >= h.target) delete h.qty[k]; else return;
+      }
+      persist("habits", h);
+    }
+  });
+  try{
+    var now = JSON.parse(localStorage.getItem(BRIDGE_IN) || "[]");
+    localStorage.setItem(BRIDGE_IN, JSON.stringify((Array.isArray(now) ? now : []).filter(function(q){ return q && !ids[q.id]; })));
+  }catch(e){}
+  touch();
+  finish(b, marked ? ["🧭 Desde Ruta del día: "+marked+(marked === 1 ? " cosa marcada" : " cosas marcadas")] : []);
+  var gain = balance() - b.bal; if(marked && gain > 0) toast("+"+fmt(gain)+" puntos");
+}
+window.addEventListener("storage", function(e){ if(e.key === BRIDGE_IN && e.newValue && e.newValue !== "[]") bridgeIn(); });
 
 /* ================= inicio ================= */
 var had = localLoad();

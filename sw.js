@@ -1,5 +1,5 @@
 /* Al día: guarda la app en el dispositivo para que abra sin internet. */
-const CACHE = "al-dia-v2";
+const CACHE = "al-dia-v3";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
@@ -7,8 +7,9 @@ self.addEventListener("install", (e) => {
 });
 
 self.addEventListener("activate", (e) => {
+  // Solo borra versiones viejas de Al día: Ruta del día vive en el mismo sitio y tiene su propia copia.
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith("al-dia-") && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
