@@ -2098,7 +2098,9 @@ function viewAjustes(){
     '<div class="setrow"><span>Frecuencia de los avisos<small>Según la prioridad de cada responsabilidad</small></span><a class="btn small" href="#avisos">Cambiar</a></div></div>';
 
   h += secHTML("Usarla como app", "");
-  h += '<div class="card">'+(ui.installEvt ? '<div class="setrow"><span>Instalar en este teléfono<small>Tendrás el ícono de Al día y funcionará sin internet</small></span><button type="button" class="btn primary small" data-act="install">Instalar</button></div>' : '')+
+  var standalone = false; try{ standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; }catch(e){}
+  h += '<div class="card">'+(IN_CLAUDE ? '' : standalone ? '<div class="setrow"><span>✓ Ya la usas como app<small>Al día está instalada en este dispositivo</small></span></div>'
+    : '<div class="setrow"><span>Instalar en este teléfono<small>Tendrás el ícono de Al día y funcionará sin internet</small></span><button type="button" class="btn primary small" data-act="install">Instalar</button></div>')+
     '<p class="howto"><b>iPhone:</b> en Safari, toca Compartir y luego «Agregar a inicio».</p><p class="howto"><b>Android:</b> en Chrome, toca el menú ⋮ y luego «Instalar app» o «Agregar a la pantalla principal».</p></div>';
   return h;
 }
@@ -3340,7 +3342,8 @@ window.addEventListener("storage", function(e){ if(e.key === LKEY && store.mode 
 
 /* instalación (solo fuera de Claude) */
 function doInstall(){
-  var ev = ui.installEvt; if(!ev) return;
+  var ev = ui.installEvt;
+  if(!ev){ toast("Tu navegador no muestra la ventana de instalación aquí. Sigue los pasos de abajo según tu teléfono."); return; }
   ev.prompt();
   Promise.resolve(ev.userChoice).catch(function(){}).then(function(){ ui.installEvt = null; render(); });
 }
