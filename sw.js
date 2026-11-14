@@ -1,5 +1,5 @@
 /* Al día: guarda la app en el dispositivo para que abra sin internet. */
-const CACHE = "al-dia-v3";
+const CACHE = "al-dia-v4";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
@@ -24,6 +24,15 @@ self.addEventListener("fetch", (e) => {
         const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); return res;
       }).catch(() => hit)));
     }
+    return;
+  }
+  // La app: primero la red para recibir siempre la versión nueva; sin internet, la copia guardada.
+  if (e.request.mode === "navigate") {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put("./index.html", copy)); } return res; })
+        .catch(() => caches.match("./index.html"))
+    );
     return;
   }
   e.respondWith(
